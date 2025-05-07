@@ -1,48 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../supabase-client";
 import { PostItem } from "./PostItem";
+import { supabase } from "../supabase-client";
 
-// Define the Post interface
 export interface Post {
-  id: number
-  title: string
-  content: string
-  created_at: string
-  image_url: string
-  user_avatar?: string
-  username?: string
+  id: number;
+  title: string;
+  content: string;
+  image_url: string;
+  avatar_url: string;
 }
 
 const fetchPosts = async (): Promise<Post[]> => {
-  const { data, error } = await supabase.rpc("get_posts_with_counts");
-
+  const { data, error } = await supabase.from("posts").select("*");
   if (error) throw new Error(error.message);
-
-  return data as Post[];
+  return data;
 };
 
 export const PostList = () => {
-  const { data, error, isLoading } = useQuery<Post[], Error>({
+  const { data: posts, isLoading, isError } = useQuery<Post[]>({
     queryKey: ["posts"],
     queryFn: fetchPosts,
   });
 
-  if (isLoading) {
-    return <div>Loading posts...</div>;
-  }
-
-  if (error) {
-    console.error("Error fetching posts:", error);
-    return <div>Error: {error.message}</div>;
-  }
-
-  console.log("Fetched posts:", data); // Debugging logs
+  if (isLoading) return <p className="text-white">Loading...</p>;
+  if (isError) return <p className="text-red-500">Failed to load posts</p>;
 
   return (
-    <div className="flex flex-wrap gap-6 justify-center">
-      {data?.map((post, key) => (
-        <PostItem post={post} key={key} />
-      ))}
+    <div className="px-4 py-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {posts?.map((post) => (
+          <PostItem key={post.id} post={post} />
+        ))}
+      </div>
     </div>
   );
 };

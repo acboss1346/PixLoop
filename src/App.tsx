@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Home } from './pages/Home';
 import { Navbar } from './components/Navbar';
 import { CreatePostPage } from './pages/CreatePostPage';
+import { PostPage } from './pages/PostPage';
 
 function App() {
   return (
@@ -12,6 +13,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<CreatePostPage />} />
+
+            <Route path="/post/:id" element={<PostPage />} />
 
           </Routes>
         </div>

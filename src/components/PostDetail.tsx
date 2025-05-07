@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { Post } from "./PostList";
 import { supabase } from "../supabase-client";
-import { LikeButton } from "./LikeButton";
 
 interface Props {
   postId: number;
@@ -26,11 +25,11 @@ export const PostDetail = ({ postId }: Props) => {
   });
 
   if (isLoading) {
-    return <div>Loading posts...</div>;
+    return <div> Loading posts...</div>;
   }
 
   if (error) {
-    return <div>Error: {error.message}</div>;
+    return <div> Error: {error.message}</div>;
   }
 
   return (
@@ -39,18 +38,18 @@ export const PostDetail = ({ postId }: Props) => {
         {data?.title}
       </h2>
       {data?.image_url && (
-        <img
-          src={data.image_url}
-          alt={data?.title}
-          className="mt-4 rounded object-cover w-full h-64"
-        />
+        <div className="w-full h-64 overflow-hidden">
+          <img
+            src={data.image_url}
+            alt={data?.title}
+            className="object-cover w-full h-full"
+          />
+        </div>
       )}
       <p className="text-gray-400">{data?.content}</p>
       <p className="text-gray-500 text-sm">
         Posted on: {new Date(data!.created_at).toLocaleDateString()}
       </p>
-
-      <LikeButton postId={postId} />
     </div>
   );
 };
