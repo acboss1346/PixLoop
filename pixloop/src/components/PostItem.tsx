@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom"; // ✅ correct
+
 import type { Post } from "./PostList";
 
 interface Props {

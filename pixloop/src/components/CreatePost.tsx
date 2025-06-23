@@ -1,5 +1,4 @@
 import { useState } from "react";
-import type { ChangeEvent } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { useAuth } from "../context/AuthContext";
@@ -11,42 +10,52 @@ interface PostInput {
 }
 
 const createPost = async (post: PostInput, imageFile: File) => {
-  const filePath = `${post.title}-${Date.now()}-${imageFile.name}`;
+  // 🧼 Sanitize title and filename
+  const sanitize = (str: string) =>
+    str.replace(/[^a-zA-Z0-9.\-_]/g, "_");
 
+  const safeFileName = `${sanitize(post.title)}-${Date.now()}-${sanitize(imageFile.name)}`;
+
+  // 🆙 Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from("post-images")
-    .upload(filePath, imageFile);
+    .upload(safeFileName, imageFile);
 
   if (uploadError) throw new Error(uploadError.message);
 
   const { data: publicURLData } = supabase.storage
     .from("post-images")
-    .getPublicUrl(filePath);
+    .getPublicUrl(safeFileName);
 
-  const { data, error } = await supabase
+  // 📝 Insert post into database
+  const { error } = await supabase
     .from("posts")
-    .insert({ ...post, image_url: publicURLData.publicUrl });
-  if (error) throw new Error(error.message);
+    .insert([{ ...post, image_url: publicURLData.publicUrl }]);
 
-  return data;
+  if (error) throw new Error(error.message);
 };
 
 export const CreatePost = () => {
-  const [title, setTitle] = useState<string>("");
-  const [content, setContent] = useState<string>("");
-
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-
   const { user } = useAuth();
 
-  const { mutate, isPending, isError } = useMutation({
-    mutationFn: (data: { post: PostInput; imageFile: File }) => {
-      return createPost(data.post, data.imageFile);
+  const { mutate, isPending, isError, error, isSuccess } = useMutation({
+    mutationFn: (data: { post: PostInput; imageFile: File }) =>
+      createPost(data.post, data.imageFile),
+    onSuccess: () => {
+      setTitle("");
+      setContent("");
+      setSelectedFile(null);
+    },
+    onError: (err) => {
+      console.error("Post creation error:", err);
     },
   });
 
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedFile) return;
     mutate({
       post: {
@@ -58,14 +67,10 @@ export const CreatePost = () => {
     });
   };
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-4">
+    <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
+      <h2 className="text-3xl font-bold text-center mb-4">Create New Post</h2>
+
       <div>
         <label htmlFor="title" className="block mb-2 font-medium">
           Title
@@ -79,6 +84,7 @@ export const CreatePost = () => {
           required
         />
       </div>
+
       <div>
         <label htmlFor="content" className="block mb-2 font-medium">
           Content
@@ -93,7 +99,6 @@ export const CreatePost = () => {
         />
       </div>
 
-      {/* Display Avatar URL (Optional - You can remove or modify this) */}
       {user?.user_metadata.avatar_url && (
         <div className="mb-4">
           <img
@@ -101,7 +106,7 @@ export const CreatePost = () => {
             alt="User Avatar"
             className="w-16 h-16 rounded-full object-cover"
           />
-          <p className="text-sm text-gray-600">Your Avatar</p>
+          <p className="text-sm text-gray-400">Your Avatar</p>
         </div>
       )}
 
@@ -113,18 +118,34 @@ export const CreatePost = () => {
           type="file"
           id="image"
           accept="image/*"
-          onChange={handleFileChange}
-          className="w-full text-gray-200"
+          onChange={(e) => {
+            if (e.target.files && e.target.files[0]) {
+              setSelectedFile(e.target.files[0]);
+            }
+          }}
+          className="w-full text-white"
+          required
         />
       </div>
+
       <button
         type="submit"
-        className="bg-purple-500 text-white px-4 py-2 rounded cursor-pointer"
+        disabled={isPending}
+        className={`bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 ${
+          isPending ? "opacity-50 cursor-not-allowed" : ""
+        }`}
       >
         {isPending ? "Creating..." : "Create Post"}
       </button>
 
-      {isError && <p className="text-red-500"> Error creating post.</p>}
+      {isError && (
+        <p className="text-red-500 mt-2">
+          {(error as Error)?.message || "Error creating post."}
+        </p>
+      )}
+      {isSuccess && (
+        <p className="text-green-500 mt-2">✅ Post created successfully!</p>
+      )}
     </form>
   );
 };
