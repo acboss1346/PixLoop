@@ -1,23 +1,23 @@
 import { useQuery } from "@tanstack/react-query";
-import type { Post } from "./PostList";
 import { supabase } from "../supabase-client";
-import { LikeButton } from "./LikeButton"
-import { CommentSection } from "./CommentSection"
+import { LikeButton } from "./LikeButton";
+import { CommentSection } from "./CommentSection";
+import type { Post } from "./PostList";
+
 
 interface Props {
   postId: number;
 }
 
 const fetchPostById = async (id: number): Promise<Post> => {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await supabase.rpc("get_posts_with_counts");
 
   if (error) throw new Error(error.message);
 
-  return data as Post;
+  const post = (data as Post[]).find((p) => p.id === id);
+  if (!post) throw new Error("Post not found");
+
+  return post;
 };
 
 export const PostDetail = ({ postId }: Props) => {
@@ -26,36 +26,33 @@ export const PostDetail = ({ postId }: Props) => {
     queryFn: () => fetchPostById(postId),
   });
 
-  if (isLoading) {
-    return <div> Loading posts...</div>;
-  }
-
-  if (error) {
-    return <div> Error: {error.message}</div>;
-  }
+  if (isLoading) return <div>Loading post...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!data) return null;
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-6xl font-bold mb-6 text-center bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
-        {data?.title}
+    <div className="space-y-6 text-white max-w-3xl mx-auto px-4">
+      <h2 className="text-4xl sm:text-6xl font-bold text-center bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent">
+        {data.title}
       </h2>
-      {data?.image_url && (
-        <div className="w-full h-64 overflow-hidden">
-          <img
-            src={data.image_url}
-            alt={data?.title}
-            className="object-cover w-full h-full"
-          />
-        </div>
+
+      {data.image_url && (
+        <img
+          src={data.image_url}
+          alt={data.title}
+          className="mt-4 rounded object-cover w-full h-64"
+        />
       )}
-      <p className="text-gray-400">{data?.content}</p>
+
+      <p className="text-gray-300 text-lg">{data.content}</p>
       <p className="text-gray-500 text-sm">
-        Posted on: {new Date(data!.created_at).toLocaleDateString()}
+        Posted on: {new Date(data.created_at).toLocaleDateString()}
       </p>
 
+      {/* Removed like/comment count display */}
 
       <LikeButton postId={postId} />
-      <CommentSection postId={postId}/>
+      <CommentSection postId={postId} />
     </div>
   );
 };

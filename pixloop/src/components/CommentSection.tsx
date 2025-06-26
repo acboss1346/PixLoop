@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { CommentItem } from "./CommentItem";
 
+
 interface Props {
   postId: number;
 }
@@ -80,16 +81,17 @@ export const CommentSection = ({ postId }: Props) => {
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["comments", postId] });
-      setNewCommentText("");
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCommentText.trim()) return;
+    if (!newCommentText) return;
     mutate({ content: newCommentText, parent_comment_id: null });
+    setNewCommentText("");
   };
 
+  /* Map of Comments - Organize Replies - Return Tree  */
   const buildCommentTree = (
     flatComments: Comment[]
   ): (Comment & { children?: Comment[] })[] => {
@@ -114,27 +116,32 @@ export const CommentSection = ({ postId }: Props) => {
     return roots;
   };
 
-  if (isLoading) return <div>Loading comments...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (isLoading) {
+    return <div> Loading comments...</div>;
+  }
+
+  if (error) {
+    return <div> Error: {error.message}</div>;
+  }
 
   const commentTree = comments ? buildCommentTree(comments) : [];
 
   return (
     <div className="mt-6">
       <h3 className="text-2xl font-semibold mb-4">Comments</h3>
+      {/* Create Comment Section */}
       {user ? (
         <form onSubmit={handleSubmit} className="mb-4">
           <textarea
             value={newCommentText}
             onChange={(e) => setNewCommentText(e.target.value)}
-            className="w-full border border-white/10 bg-transparent p-2 rounded text-white"
+            className="w-full border border-white/10 bg-transparent p-2 rounded"
             placeholder="Write a comment..."
             rows={3}
           />
           <button
             type="submit"
             className="mt-2 bg-purple-500 text-white px-4 py-2 rounded cursor-pointer"
-            disabled={isPending || !newCommentText.trim()}
           >
             {isPending ? "Posting..." : "Post Comment"}
           </button>
@@ -148,6 +155,7 @@ export const CommentSection = ({ postId }: Props) => {
         </p>
       )}
 
+      {/* Comments Display Section */}
       <div className="space-y-4">
         {commentTree.map((comment, key) => (
           <CommentItem key={key} comment={comment} postId={postId} />

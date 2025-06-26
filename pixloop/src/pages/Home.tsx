@@ -1,4 +1,4 @@
- import { useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { PostItem } from "../components/PostItem";
 
@@ -8,16 +8,15 @@ interface Post {
   content: string;
   avatar_url: string | null;
   image_url: string;
+  like_count?: number;
+  comment_count?: number;
 }
 
 export const Home = () => {
   const { data, isLoading, isError, error } = useQuery<Post[]>({
     queryKey: ["posts"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("posts")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("get_posts_with_counts");
       if (error) throw new Error(error.message);
       return data;
     },

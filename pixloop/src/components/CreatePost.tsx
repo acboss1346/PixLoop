@@ -1,22 +1,24 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import type { ChangeEvent } from "react";
+
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { useAuth } from "../context/AuthContext";
+import type { Community } from "./CommunityList";
+import { fetchCommunities } from "./CommunityList";
+
 
 interface PostInput {
   title: string;
   content: string;
   avatar_url: string | null;
+  community_id?: number | null;
 }
 
 const createPost = async (post: PostInput, imageFile: File) => {
-  // 🧼 Sanitize title and filename
-  const sanitize = (str: string) =>
-    str.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-
+  const sanitize = (str: string) => str.replace(/[^a-zA-Z0-9.\-_]/g, "_");
   const safeFileName = `${sanitize(post.title)}-${Date.now()}-${sanitize(imageFile.name)}`;
 
-  // 🆙 Upload to Supabase Storage
   const { error: uploadError } = await supabase.storage
     .from("post-images")
     .upload(safeFileName, imageFile);
@@ -27,7 +29,6 @@ const createPost = async (post: PostInput, imageFile: File) => {
     .from("post-images")
     .getPublicUrl(safeFileName);
 
-  // 📝 Insert post into database
   const { error } = await supabase
     .from("posts")
     .insert([{ ...post, image_url: publicURLData.publicUrl }]);
@@ -38,33 +39,45 @@ const createPost = async (post: PostInput, imageFile: File) => {
 export const CreatePost = () => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [communityId, setCommunityId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const { user } = useAuth();
 
-  const { mutate, isPending, isError, error, isSuccess } = useMutation({
-    mutationFn: (data: { post: PostInput; imageFile: File }) =>
-      createPost(data.post, data.imageFile),
+  const { user } = useAuth();
+  const avatarUrl = user?.user_metadata?.avatar_url || null;
+
+  const { data: communities, isLoading: isCommunitiesLoading } = useQuery<Community[], Error>({
+    queryKey: ["communities"],
+    queryFn: fetchCommunities,
+  });
+
+  const { mutate, isPending, isError, error, isSuccess } = useMutation<void, Error, { post: PostInput; imageFile: File }>({
+    mutationFn: ({ post, imageFile }) => createPost(post, imageFile),
     onSuccess: () => {
       setTitle("");
       setContent("");
       setSelectedFile(null);
-    },
-    onError: (err) => {
-      console.error("Post creation error:", err);
+      setCommunityId(null);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) return;
+    if (!selectedFile || !user) return;
+
     mutate({
       post: {
         title,
         content,
-        avatar_url: user?.user_metadata.avatar_url || null,
+        avatar_url: avatarUrl,
+        community_id: communityId,
       },
       imageFile: selectedFile,
     });
+  };
+
+  const handleCommunityChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setCommunityId(value ? Number(value) : null);
   };
 
   return (
@@ -72,12 +85,10 @@ export const CreatePost = () => {
       <h2 className="text-3xl font-bold text-center mb-4">Create New Post</h2>
 
       <div>
-        <label htmlFor="title" className="block mb-2 font-medium">
-          Title
-        </label>
+        <label htmlFor="title" className="block mb-2 font-medium">Title</label>
         <input
-          type="text"
           id="title"
+          type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           className="w-full border border-white/10 bg-transparent p-2 rounded"
@@ -86,9 +97,7 @@ export const CreatePost = () => {
       </div>
 
       <div>
-        <label htmlFor="content" className="block mb-2 font-medium">
-          Content
-        </label>
+        <label htmlFor="content" className="block mb-2 font-medium">Content</label>
         <textarea
           id="content"
           value={content}
@@ -99,27 +108,35 @@ export const CreatePost = () => {
         />
       </div>
 
-      {user?.user_metadata.avatar_url && (
-        <div className="mb-4">
-          <img
-            src={user.user_metadata.avatar_url}
-            alt="User Avatar"
-            className="w-16 h-16 rounded-full object-cover"
-          />
-          <p className="text-sm text-gray-400">Your Avatar</p>
-        </div>
-      )}
+      <div>
+        <label htmlFor="community" className="block mb-2 font-medium">Select Community</label>
+        <select
+          id="community"
+          value={communityId ?? ""}
+          onChange={handleCommunityChange}
+          className="w-full border border-white/10 bg-transparent p-2 rounded"
+          required
+        >
+          <option value="">-- Choose a Community --</option>
+          {communities?.map((community) => (
+            <option key={community.id} value={community.id}>
+              {community.name}
+            </option>
+          ))}
+        </select>
+        {isCommunitiesLoading && (
+          <p className="text-sm text-gray-400 mt-1">Loading communities...</p>
+        )}
+      </div>
 
       <div>
-        <label htmlFor="image" className="block mb-2 font-medium">
-          Upload Image
-        </label>
+        <label htmlFor="image" className="block mb-2 font-medium">Upload Image</label>
         <input
-          type="file"
           id="image"
+          type="file"
           accept="image/*"
           onChange={(e) => {
-            if (e.target.files && e.target.files[0]) {
+            if (e.target.files?.[0]) {
               setSelectedFile(e.target.files[0]);
             }
           }}
@@ -140,7 +157,7 @@ export const CreatePost = () => {
 
       {isError && (
         <p className="text-red-500 mt-2">
-          {(error as Error)?.message || "Error creating post."}
+          {error?.message || "Error creating post."}
         </p>
       )}
       {isSuccess && (
