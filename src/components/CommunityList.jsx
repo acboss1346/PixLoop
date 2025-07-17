@@ -19,7 +19,8 @@ export const CommunityList = () => {
   });
 
   if (isLoading)
-    return <div className="text-center py-4">Loading communities...</div>;
+    return 
+    <div className="text-center py-4">Loading communities...</div>;
   if (error)
     return (
       <div className="text-center text-red-500 py-4">
