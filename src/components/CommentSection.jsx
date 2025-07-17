@@ -4,31 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { CommentItem } from "./CommentItem";
 
-interface Props {
-  postId: number;
-}
-
-interface NewComment {
-  content: string;
-  parent_comment_id?: number | null;
-}
-
-export interface Comment {
-  id: number;
-  post_id: number;
-  parent_comment_id: number | null;
-  content: string;
-  user_id: string;
-  created_at: string;
-  author: string;
-}
-
-const createComment = async (
-  newComment: NewComment,
-  postId: number,
-  userId?: string,
-  author?: string
-) => {
+const createComment = async (newComment, postId, userId, author) => {
   if (!userId || !author) {
     throw new Error("You must be logged in to comment.");
   }
@@ -44,7 +20,7 @@ const createComment = async (
   if (error) throw new Error(error.message);
 };
 
-const fetchComments = async (postId: number): Promise<Comment[]> => {
+const fetchComments = async (postId) => {
   const { data, error } = await supabase
     .from("comments")
     .select("*")
@@ -52,11 +28,11 @@ const fetchComments = async (postId: number): Promise<Comment[]> => {
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);
-  return data as Comment[];
+  return data;
 };
 
-export const CommentSection = ({ postId }: Props) => {
-  const [newCommentText, setNewCommentText] = useState<string>("");
+export const CommentSection = ({ postId }) => {
+  const [newCommentText, setNewCommentText] = useState("");
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -64,14 +40,14 @@ export const CommentSection = ({ postId }: Props) => {
     data: comments,
     isLoading,
     error,
-  } = useQuery<Comment[], Error>({
+  } = useQuery({
     queryKey: ["comments", postId],
     queryFn: () => fetchComments(postId),
     refetchInterval: 5000,
   });
 
   const { mutate, isPending, isError } = useMutation({
-    mutationFn: (newComment: NewComment) =>
+    mutationFn: (newComment) =>
       createComment(
         newComment,
         postId,
@@ -83,19 +59,16 @@ export const CommentSection = ({ postId }: Props) => {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!newCommentText) return;
     mutate({ content: newCommentText, parent_comment_id: null });
     setNewCommentText("");
   };
 
-  /* Map of Comments - Organize Replies - Return Tree  */
-  const buildCommentTree = (
-    flatComments: Comment[]
-  ): (Comment & { children?: Comment[] })[] => {
-    const map = new Map<number, Comment & { children?: Comment[] }>();
-    const roots: (Comment & { children?: Comment[] })[] = [];
+  const buildCommentTree = (flatComments) => {
+    const map = new Map();
+    const roots = [];
 
     flatComments.forEach((comment) => {
       map.set(comment.id, { ...comment, children: [] });
@@ -105,10 +78,10 @@ export const CommentSection = ({ postId }: Props) => {
       if (comment.parent_comment_id) {
         const parent = map.get(comment.parent_comment_id);
         if (parent) {
-          parent.children!.push(map.get(comment.id)!);
+          parent.children.push(map.get(comment.id));
         }
       } else {
-        roots.push(map.get(comment.id)!);
+        roots.push(map.get(comment.id));
       }
     });
 
@@ -116,11 +89,11 @@ export const CommentSection = ({ postId }: Props) => {
   };
 
   if (isLoading) {
-    return <div> Loading comments...</div>;
+    return <div>Loading comments...</div>;
   }
 
   if (error) {
-    return <div> Error: {error.message}</div>;
+    return <div>Error: {error.message}</div>;
   }
 
   const commentTree = comments ? buildCommentTree(comments) : [];
@@ -128,7 +101,7 @@ export const CommentSection = ({ postId }: Props) => {
   return (
     <div className="mt-6">
       <h3 className="text-2xl font-semibold mb-4">Comments</h3>
-      {/* Create Comment Section */}
+
       {user ? (
         <form onSubmit={handleSubmit} className="mb-4">
           <textarea
@@ -154,7 +127,6 @@ export const CommentSection = ({ postId }: Props) => {
         </p>
       )}
 
-      {/* Comments Display Section */}
       <div className="space-y-4">
         {commentTree.map((comment, key) => (
           <CommentItem key={key} comment={comment} postId={postId} />

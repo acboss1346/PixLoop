@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom"; // ✅ correct
+
 import { useAuth } from "../context/AuthContext";
 
 export const Navbar = () => {
