@@ -26,7 +26,6 @@ const createReply = async (
   if (error) throw new Error(error.message);
 };
 
-// Main component
 export const CommentItem = ({ comment, postId }) => {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");

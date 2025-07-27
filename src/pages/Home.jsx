@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "../supabase-client";
 import { PostItem } from "../components/PostItem";
-import { useEffect } from "react";
+
 
 export const Home = () => {
   const { data, isLoading, isError, error } = useQuery({
