@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../supabase-client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-// Async function to insert a reply into Supabase
+
 const createReply = async (
   replyContent,
   postId,
