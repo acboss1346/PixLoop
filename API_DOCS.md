@@ -1,6 +1,6 @@
 # PixLoop API Documentation
 
-Base URL: `http://localhost:5001/api`
+Base URL: `https://pixloop-backend.onrender.com/api`
 
 ## Authentication
 
