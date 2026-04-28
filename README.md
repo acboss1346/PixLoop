@@ -71,3 +71,4 @@ Open `http://localhost:5173` to view the app!
 
 - **Backend**: Can be deployed directly to Railway, Render, or Heroku. The `package.json` contains a `start` script.
 - **Frontend**: Can be deployed seamlessly to Vercel or Netlify. The `package.json` contains a `build` script. Just remember to set the `VITE_API_URL` environment variable on Vercel to point to your live backend URL (e.g., `https://pixloop-backend.onrender.com/api`).
+# Pixloop
